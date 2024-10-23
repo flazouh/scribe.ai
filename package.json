@@ -30,6 +30,8 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "lucide-svelte": "^0.453.0",
+    "radix-svelte": "^0.9.0"
   }
 }

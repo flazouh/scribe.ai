@@ -1,38 +1,72 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { FFmpeg } from '@ffmpeg/ffmpeg';
-  import { fetchFile, toBlobURL } from '@ffmpeg/util';
-  import JSZip from 'jszip';
+  import { onMount } from "svelte";
+  import { FFmpeg } from "@ffmpeg/ffmpeg";
+  import { fetchFile, toBlobURL } from "@ffmpeg/util";
+  import JSZip from "jszip";
+  import { Button } from "$lib/components/ui/button";
+  import { Progress } from "$lib/components/ui/progress";
+  import { Slider } from "$lib/components/ui/slider";
+  import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+  } from "$lib/components/ui/card";
+    import ProProgress from "$lib/components/ui/progress/ProProgress.svelte";
 
   let audioFile: File | null = null;
-  let chunkSize = 60; // Default chunk size in seconds
+  let chunkSize = 60 * 10; // Default chunk size in seconds
   let ffmpeg: FFmpeg;
   let loaded = false;
   let loading = false;
-  let message = '';
-  let error = '';
+  let message = "";
+  let error = "";
+  let progress = 0;
+  let loadingProgress = 0; // New variable for FFmpeg loading progress
 
   onMount(async () => {
     ffmpeg = new FFmpeg();
-    ffmpeg.on('log', ({ message: msg }) => {
+    ffmpeg.on("log", ({ message: msg }) => {
       message = msg;
       console.log(msg);
     });
+    ffmpeg.on("progress", ({ progress: p }) => {
+      progress = parseFloat(p.toFixed(2));
+    });
+
+    // Load FFmpeg on mount
+    await load();
   });
 
   async function load() {
     loading = true;
-    error = '';
+    error = "";
     try {
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+      const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
+      ffmpeg.on("progress", ({ progress, time }) => {
+        console.log(time);
+        console.log(progress);
+        loadingProgress = progress;
+      });
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        coreURL: await toBlobURL(
+          `${baseURL}/ffmpeg-core.js`,
+          "text/javascript",
+        ),
+        wasmURL: await toBlobURL(
+          `${baseURL}/ffmpeg-core.wasm`,
+          "application/wasm",
+        ),
       });
       loaded = true;
     } catch (err) {
-      console.error('Failed to load FFmpeg:', err);
-      error = `Failed to load FFmpeg: ${err.message}`;
+      if (err instanceof Error) {
+        console.error("Failed to load FFmpeg:", err);
+        error = `Failed to load FFmpeg: ${err.message}`;
+      } else {
+        console.error("Failed to load FFmpeg:", err);
+        error = "Failed to load FFmpeg: Unknown error";
+      }
     } finally {
       loading = false;
     }
@@ -55,7 +89,9 @@
   async function splitAudio() {
     if (!audioFile || !loaded) return;
 
-    const inputFileName = 'input' + audioFile.name.substring(audioFile.name.lastIndexOf('.'));
+    progress = 0;
+    const inputFileName =
+      "input" + audioFile.name.substring(audioFile.name.lastIndexOf("."));
     await ffmpeg.writeFile(inputFileName, await fetchFile(audioFile));
 
     const duration = await getAudioDuration(audioFile);
@@ -66,12 +102,18 @@
       const outputFileName = `output_${i}.mp3`;
 
       await ffmpeg.exec([
-        '-i', inputFileName,
-        '-ss', start.toString(),
-        '-t', chunkSize.toString(),
-        '-acodec', 'libmp3lame',
-        outputFileName
+        "-i",
+        inputFileName,
+        "-ss",
+        start.toString(),
+        "-t",
+        chunkSize.toString(),
+        "-acodec",
+        "libmp3lame",
+        outputFileName,
       ]);
+
+      progress = ((i + 1) / chunks) * 100;
     }
 
     // Create a zip file containing all the chunks
@@ -82,11 +124,11 @@
       zip.file(outputFileName, data);
     }
 
-    const content = await zip.generateAsync({ type: 'blob' });
+    const content = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(content);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'audio_chunks.zip';
+    a.download = "audio_chunks.zip";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -98,64 +140,68 @@
       audio.src = URL.createObjectURL(file);
     });
   }
+
+
+  function toMinutesAndSeconds(seconds: number) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}m${remainingSeconds ? `${remainingSeconds}s` : ""}`;
+  }
 </script>
 
-<main class="container mx-auto p-4">
-  <h1 class="text-2xl font-bold mb-4">Audio Splitter</h1>
+<main class=" text-foreground min-h-screen p-8">
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Audio Splitter</h1>
+    {#if !loaded}
+      <Card>
+        <CardHeader>
+          <CardTitle>Loading FFmpeg Core</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p class="mb-2">Please wait while FFmpeg is being loaded...</p>
+          {#if error}
+            <p class="text-destructive mt-2">{error}</p>
+          {/if}
+        </CardContent>
+      </Card>
+    {:else}
+      <Card>
+        <CardHeader>
+          <CardTitle>Audio File</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div
+            class="border-2 border-dashed border-muted rounded-lg p-8 mb-4"
+            on:dragover|preventDefault
+            on:drop|preventDefault={handleDrop}
+          >
+            <input
+              type="file"
+              accept="audio/*"
+              on:change={handleFileSelect}
+              class="mb-2"
+            />
+          </div>
 
-  {#if !loaded}
-    <button
-      on:click={load}
-      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4"
-      disabled={loading}
-    >
-      {#if loading}
-        Loading FFmpeg Core...
-      {:else}
-        Load FFmpeg Core (~31 MB)
-      {/if}
-    </button>
-    {#if error}
-      <p class="text-red-500 mt-2">{error}</p>
+            <div class="mb-4">
+              <label for="chunkSize" class="block mb-2">
+                Chunk size: {toMinutesAndSeconds(chunkSize)}
+              </label>
+            </div>
+
+            <Button disabled={!audioFile} on:click={splitAudio} variant="border">
+              Split and Download
+            </Button>
+
+            {#if progress > 0 && progress < 100}
+
+              <div class="mt-4">
+                <ProProgress bind:progress />
+                <p class="text-center mt-2">{progress}%</p>
+              </div>
+            {/if}
+        </CardContent>
+      </Card>
     {/if}
-  {:else}
-    <div
-      class="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4"
-      on:dragover|preventDefault
-      on:drop|preventDefault={handleDrop}
-    >
-      <input
-        type="file"
-        accept="audio/*"
-        on:change={handleFileSelect}
-        class="mb-2"
-      />
-      <p class="text-gray-500">or drag and drop an audio file here</p>
-    </div>
-
-    {#if audioFile}
-      <div class="mb-4">
-        <label for="chunkSize" class="block mb-2">Chunk size (seconds):</label>
-        <input
-          type="range"
-          id="chunkSize"
-          bind:value={chunkSize}
-          min="1"
-          max="300"
-          class="w-full"
-        />
-        <span>{chunkSize} seconds</span>
-      </div>
-
-      <button
-        on:click={splitAudio}
-        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-      >
-        Split and Download
-      </button>
-    {/if}
-  {/if}
-
-  <p class="mt-4">{message}</p>
-  <p class="mt-2">Open Developer Tools (Ctrl+Shift+I) to View Logs</p>
+  </div>
 </main>
