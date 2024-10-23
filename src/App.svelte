@@ -4,15 +4,15 @@
   import { fetchFile, toBlobURL } from "@ffmpeg/util";
   import JSZip from "jszip";
   import { Button } from "$lib/components/ui/button";
-  import { Progress } from "$lib/components/ui/progress";
-  import { Slider } from "$lib/components/ui/slider";
   import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
   } from "$lib/components/ui/card";
-    import ProProgress from "$lib/components/ui/progress/ProProgress.svelte";
+  import ProProgress from "$lib/components/ui/progress/ProProgress.svelte";
+  import { Loader2 } from "lucide-svelte";
+    import ProSlider from "$lib/components/ui/slider/ProSlider.svelte";
 
   let audioFile: File | null = null;
   let chunkSize = 60 * 10; // Default chunk size in seconds
@@ -23,6 +23,10 @@
   let error = "";
   let progress = 0;
   let loadingProgress = 0; // New variable for FFmpeg loading progress
+  $: isProcessing = progress > 0 && progress < 100;
+
+  let audioDuration = 0;
+  let chunkInfo = '';
 
   onMount(async () => {
     ffmpeg = new FFmpeg();
@@ -59,10 +63,12 @@
     }
   }
 
-  function handleFileSelect(event: Event) {
+  async function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.files) {
       audioFile = target.files[0];
+      audioDuration = await getAudioDuration(audioFile);
+      updateChunkInfo();
     }
   }
 
@@ -70,14 +76,37 @@
     event.preventDefault();
     if (event.dataTransfer?.files) {
       audioFile = event.dataTransfer.files[0];
+      getAudioDuration(audioFile).then(duration => {
+        audioDuration = duration;
+        updateChunkInfo();
+      });
     }
+  }
+
+  function updateChunkInfo() {
+    if (audioFile && audioDuration > 0) {
+      const effectiveChunkSize = Math.min(chunkSize, audioDuration);
+      const chunks = Math.ceil(audioDuration / effectiveChunkSize);
+      const lastChunkSize = audioDuration % effectiveChunkSize || effectiveChunkSize;
+      chunkInfo = `This audio will be split into ${chunks} chunk${chunks > 1 ? 's' : ''}. ` +
+        `${chunks > 1 ? `The first ${chunks - 1} chunk${chunks > 2 ? 's' : ''} will be ${toMinutesAndSeconds(effectiveChunkSize)} long. ` : ''}` +
+        `The ${chunks > 1 ? 'last' : 'only'} chunk will be ${toMinutesAndSeconds(lastChunkSize)} long.`;
+    } else {
+      chunkInfo = '';
+    }
+  }
+
+  $: {
+    chunkSize;
+    updateChunkInfo();
   }
 
   async function splitAudio() {
     if (!audioFile || !loaded) return;
 
     progress = 0;
-    const inputFileName = "input" + audioFile.name.substring(audioFile.name.lastIndexOf("."));
+    const inputFileName =
+      "input" + audioFile.name.substring(audioFile.name.lastIndexOf("."));
     await ffmpeg.writeFile(inputFileName, await fetchFile(audioFile));
 
     const duration = await getAudioDuration(audioFile);
@@ -89,9 +118,13 @@
       const timeMatch = msg.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
       if (timeMatch) {
         const [, hours, minutes, seconds] = timeMatch;
-        const currentTime = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(seconds);
+        const currentTime =
+          parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(seconds);
         // Calculate the actual chunk duration for the current chunk
-        const actualChunkDuration = Math.min(chunkSize, duration - totalProgress * chunkSize);
+        const actualChunkDuration = Math.min(
+          chunkSize,
+          duration - totalProgress * chunkSize,
+        );
         const chunkProgress = Math.min(currentTime / actualChunkDuration, 1);
         const overallProgress = (totalProgress + chunkProgress) / chunks;
         progress = Math.round(overallProgress * 100);
@@ -145,7 +178,6 @@
     });
   }
 
-
   function toMinutesAndSeconds(seconds: number) {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
@@ -186,27 +218,46 @@
               type="file"
               accept="audio/*"
               on:change={handleFileSelect}
-              class="mb-2"
+              class="border border-setting-item hover:border-violet-500 flex items-center justify-center gap-2 px-2 py-1 cursor-pointer w-full rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             />
           </div>
 
-            <div class="mb-4">
-              <label for="chunkSize" class="block mb-2">
-                Chunk size: {toMinutesAndSeconds(chunkSize)}
-              </label>
+          {#if audioDuration > 0}
+          <div class="mb-4">
+            <label for="chunkSize" class="block mb-2">
+              Chunk size: {toMinutesAndSeconds(chunkSize)}
+            </label>
+            <ProSlider
+              min={30}
+              max={audioDuration}
+                step={1}
+                bind:value={chunkSize}
+              />
             </div>
+          {/if}
 
-            <Button disabled={!audioFile} on:click={splitAudio} variant="border">
-              Split and Download
-            </Button>
+          {#if chunkInfo}
+            <p class="mb-4 text-sm text-muted-foreground">{chunkInfo}</p>
+          {/if}
 
-            {#if progress > 0 && progress < 100}
-
-              <div class="mt-4">
-                <ProProgress bind:progress />
-                <p class="text-center mt-2">{progress}%</p>
-              </div>
+          <Button
+            disabled={!audioFile || isProcessing}
+            on:click={splitAudio}
+            variant="border"
+            class="relative"
+          >
+            {#if isProcessing}
+              <Loader2 class="mr-2 h-4 w-4 animate-spin text-violet-500" />
             {/if}
+            {isProcessing ? "Processing..." : "Split and Download"}
+          </Button>
+
+          {#if progress > 0 && progress < 100}
+            <div class="mt-4">
+              <ProProgress bind:progress />
+              <p class="text-center mt-2">{progress}%</p>
+            </div>
+          {/if}
         </CardContent>
       </Card>
     {/if}
