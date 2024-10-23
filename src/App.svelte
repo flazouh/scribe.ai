@@ -26,14 +26,6 @@
 
   onMount(async () => {
     ffmpeg = new FFmpeg();
-    ffmpeg.on("log", ({ message: msg }) => {
-      message = msg;
-      console.log(msg);
-    });
-    ffmpeg.on("progress", ({ progress: p }) => {
-      progress = parseFloat(p.toFixed(2));
-    });
-
     // Load FFmpeg on mount
     await load();
   });
@@ -43,11 +35,6 @@
     error = "";
     try {
       const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
-      ffmpeg.on("progress", ({ progress, time }) => {
-        console.log(time);
-        console.log(progress);
-        loadingProgress = progress;
-      });
       await ffmpeg.load({
         coreURL: await toBlobURL(
           `${baseURL}/ffmpeg-core.js`,
@@ -90,16 +77,33 @@
     if (!audioFile || !loaded) return;
 
     progress = 0;
-    const inputFileName =
-      "input" + audioFile.name.substring(audioFile.name.lastIndexOf("."));
+    const inputFileName = "input" + audioFile.name.substring(audioFile.name.lastIndexOf("."));
     await ffmpeg.writeFile(inputFileName, await fetchFile(audioFile));
 
     const duration = await getAudioDuration(audioFile);
     const chunks = Math.ceil(duration / chunkSize);
+    let totalProgress = 0;
+
+    ffmpeg.on("log", ({ message: msg }) => {
+      console.log(msg);
+      const timeMatch = msg.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      if (timeMatch) {
+        const [, hours, minutes, seconds] = timeMatch;
+        const currentTime = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(seconds);
+        // Calculate the actual chunk duration for the current chunk
+        const actualChunkDuration = Math.min(chunkSize, duration - totalProgress * chunkSize);
+        const chunkProgress = Math.min(currentTime / actualChunkDuration, 1);
+        const overallProgress = (totalProgress + chunkProgress) / chunks;
+        progress = Math.round(overallProgress * 100);
+        console.log(progress);
+      }
+    });
 
     for (let i = 0; i < chunks; i++) {
       const start = i * chunkSize;
       const outputFileName = `output_${i}.mp3`;
+      // Calculate the actual chunk duration for this iteration
+      const actualChunkDuration = Math.min(chunkSize, duration - start);
 
       await ffmpeg.exec([
         "-i",
@@ -107,13 +111,13 @@
         "-ss",
         start.toString(),
         "-t",
-        chunkSize.toString(),
+        actualChunkDuration.toString(),
         "-acodec",
         "libmp3lame",
         outputFileName,
       ]);
 
-      progress = ((i + 1) / chunks) * 100;
+      totalProgress++;
     }
 
     // Create a zip file containing all the chunks
