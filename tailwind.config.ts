@@ -5,6 +5,9 @@ export default {
 
   theme: {
     extend: {
+      fontFamily: {
+        inter: ["Inter", "sans-serif"],
+      },
       colors: {
         "green-ufo": "#16DB94",
         "pro-turquoise": "#41d1ff",
@@ -15,5 +18,5 @@ export default {
     },
   },
 
-  plugins: []
+  plugins: [require("tailwindcss-font-inter")],
 } satisfies Config;

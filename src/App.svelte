@@ -156,8 +156,8 @@
 <main class=" text-foreground min-h-screen p-8">
   <div class="max-w-3xl mx-auto">
     <div class="flex items-center justify-center mb-8">
-      <img src="/logo.png" alt="TranscriptAI" class="w-16 h-16" />
-      <h1 class="text-3xl font-bold">Audio Splitter</h1>
+      <img src="/logo.png" alt="ScribeAI" class="size-24" />
+      <h1 class="text-5xl font-inter font-bold">ScribeAI</h1>
     </div>
     {#if !loaded}
       <Card>
