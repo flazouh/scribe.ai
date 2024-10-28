@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json",
+    "🌿 git.branch": "tsx git.branch.ts main",
+    "💾 oco.commit": "git add . && oco --yes",
+    "🚀 stage-commit-pr-merge": "yarn run \"🌿 git.branch\" && yarn run \"💾 oco.commit\" && gh pr create --title \"$(git log -1 --pretty=%s)\" --body \"$(git log -1 --pretty=%b)\" --base main --head $(git rev-parse --abbrev-ref HEAD) && gh pr merge $(git rev-parse --abbrev-ref HEAD) --squash --delete-branch"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
@@ -30,6 +33,7 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
+    "@sveltejs/kit": "^2.0.0",
     "jszip": "^3.10.1",
     "lucide-svelte": "^0.453.0",
     "radix-svelte": "^0.9.0",
