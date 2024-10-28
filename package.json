@@ -1,42 +1,48 @@
 {
-  "name": "transcript-ai",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json",
-    "🌿 git.branch": "tsx git.branch.ts main",
-    "💾 oco.commit": "git add . && oco --yes",
-    "🚀 stage-commit-pr-merge": "yarn run \"🌿 git.branch\" && yarn run \"💾 oco.commit\" && gh pr create --title \"$(git log -1 --pretty=%s)\" --body \"$(git log -1 --pretty=%b)\" --base main --head $(git rev-parse --abbrev-ref HEAD) && gh pr merge $(git rev-parse --abbrev-ref HEAD) --squash --delete-branch"
-  },
-  "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^4.0.0",
-    "@tailwindcss/typography": "^0.5.14",
-    "@tsconfig/svelte": "^5.0.4",
-    "@types/jszip": "^3.4.1",
-    "@types/node": "^22.7.9",
-    "autoprefixer": "^10.4.20",
-    "bits-ui": "^0.21.16",
-    "clsx": "^2.1.1",
-    "svelte": "^5.0.3",
-    "svelte-check": "^4.0.5",
-    "tailwind-merge": "^2.5.4",
-    "tailwind-variants": "^0.2.1",
-    "tailwindcss": "^3.4.9",
-    "tslib": "^2.8.0",
-    "typescript": "~5.6.2",
-    "vite": "^5.4.9"
-  },
-  "dependencies": {
-    "@ffmpeg/ffmpeg": "^0.12.10",
-    "@ffmpeg/util": "^0.12.1",
-    "@sveltejs/kit": "^2.0.0",
-    "jszip": "^3.10.1",
-    "lucide-svelte": "^0.453.0",
-    "radix-svelte": "^0.9.0",
-    "tailwindcss-font-inter": "^3.1.0"
-  }
+	"name": "transcript-ai",
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+	},
+	"devDependencies": {
+		"@ffmpeg/ffmpeg": "*",
+		"@ffmpeg/util": "*",
+		"@playwright/test": "^1.41.2",
+		"@sveltejs/adapter-auto": "^3.1.1",
+		"@sveltejs/kit": "^2.5.0",
+		"@sveltejs/vite-plugin-svelte": "^3.0.2",
+		"@tsconfig/node18": "^18.2.2",
+		"@types/eslint": "8.56.2",
+		"@types/node": "^22.8.1",
+		"@typescript-eslint/eslint-plugin": "^6.21.0",
+		"@typescript-eslint/parser": "^6.21.0",
+		"autoprefixer": "^10.4.20",
+		"bits-ui": "^0.21.16",
+		"clsx": "^2.1.1",
+		"eslint": "^8.56.0",
+		"eslint-config-prettier": "^9.1.0",
+		"eslint-plugin-svelte": "^2.35.1",
+		"jszip": "^3.10.1",
+		"lucide-svelte": "^0.453.0",
+		"prettier": "^3.2.5",
+		"prettier-plugin-svelte": "^3.1.2",
+		"svelte": "^4.2.10",
+		"svelte-check": "^3.6.4",
+		"tailwind-merge": "^2.5.4",
+		"tailwind-variants": "^0.2.1",
+		"tailwindcss": "^3.4.9",
+		"tailwindcss-font-inter": "^3.1.0",
+		"tslib": "^2.6.2",
+		"typescript": "^5.3.3",
+		"vite": "^5.1.1",
+		"vitest": "^1.2.2"
+	},
+	"dependencies": {
+		"socket.io-client": "^4.8.1"
+	}
 }

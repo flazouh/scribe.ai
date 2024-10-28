@@ -1,5 +1,3 @@
-<script>
-  import "./app.css";
-</script>
+<h1>Welcome to ScribeAI</h1>
 
-<slot />
+<p>Please select an option from the menu.</p>
