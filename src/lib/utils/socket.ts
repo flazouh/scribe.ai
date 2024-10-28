@@ -1,21 +1,26 @@
 import { io, Socket } from 'socket.io-client';
 import { getAPIEndpoint } from '$lib/utils/api';
 
-export enum WebSocketMessages {
-    REQUEST_TRANSCRIPTION = 'REQUEST_TRANSCRIPTION',
+export interface TranscriptionPayload {
+    buffer: ArrayBuffer;
 }
 
-export interface TranscriptionPayload {
-    buffer: Buffer;
+export enum TranscriptionWebsocketMessages {
+    REQUEST_TRANSCRIPTION = "request_transcription",
+    TEST = "test",
+}
+
+export enum TranscriptionWebsocketNamespaces {
+    TRANSCRIPTION = "transcription",
 }
 
 export type WebSocketPayloads = {
-    [WebSocketMessages.REQUEST_TRANSCRIPTION]: TranscriptionPayload;
+    [TranscriptionWebsocketMessages.REQUEST_TRANSCRIPTION]: TranscriptionPayload;
+    [TranscriptionWebsocketMessages.TEST]: { message: string };
 };
 
-export interface WebSocketConfig<T extends WebSocketMessages, C> {
-    route: string;
-    outgoingMessage: T;
+export interface WebSocketConfig<C> {
+    namespace: string;
     callbacks: C;
 }
 
@@ -23,7 +28,8 @@ interface AuthenticatedWebSocketMessageBody<T> {
     payload: T;
 }
 
-class WebSocketManager<T extends WebSocketMessages, C> {
+
+class WebSocketManager<C> {
     connect() {
         this.socket.connect();
     }
@@ -31,15 +37,15 @@ class WebSocketManager<T extends WebSocketMessages, C> {
         return this.socket.connected;
     }
     private socket!: Socket;
-    private config: WebSocketConfig<T, C>;
+    private config: WebSocketConfig<C>;
 
-    constructor(config: WebSocketConfig<T, C>) {
+    constructor(config: WebSocketConfig<C>) {
         this.config = config;
         this.initializeSocket();
     }
 
     private async initializeSocket() {
-        const url = getAPIEndpoint(this.config.route);
+        const url = getAPIEndpoint(this.config.namespace);
 
         this.socket = io(url, {
             transports: ["websocket"],
@@ -50,15 +56,15 @@ class WebSocketManager<T extends WebSocketMessages, C> {
 
     private setupEventListeners() {
         this.socket.on("connect", () => {
-            console.log(`Connected to WebSocket at ${this.config.route}`);
+            console.log(`Connected to WebSocket at ${this.config.namespace}`);
         });
 
         this.socket.on("disconnect", () => {
-            console.log(`Disconnected from WebSocket at ${this.config.route}`);
+            console.log(`Disconnected from WebSocket at ${this.config.namespace}`);
         });
 
         this.socket.on("connect_error", (error) => {
-            console.error(`Failed to connect to WebSocket at ${this.config.route}:`, error);
+            console.error(`Failed to connect to WebSocket at ${this.config.namespace}:`, error);
         });
 
         for (const [event, callback] of Object.entries(this.config.callbacks)) {
@@ -68,13 +74,13 @@ class WebSocketManager<T extends WebSocketMessages, C> {
         }
     }
 
-    async send(payload: WebSocketPayloads[T]) {
+    async send({ payload, message }: { payload: WebSocketPayloads[T]; message: T; }) {
         const messageBody: AuthenticatedWebSocketMessageBody<WebSocketPayloads[T]> = {
             payload,
         };
 
 
-        this.socket.emit(this.config.outgoingMessage, messageBody);
+        this.socket.emit(message, messageBody);
     }
 
     disconnect() {

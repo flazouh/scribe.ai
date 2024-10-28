@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { cn } from '$lib/utils';
+  import { cn } from '$lib/utils/styling';
 
   export let value: number = 0;
   export let min: number = 0;
