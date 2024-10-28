@@ -1,7 +1,7 @@
 
 const URLS = {
     DEV: "http://localhost:3000",
-    PROD: "https://api.scribeai.com"
+    PROD: "https://scribe-ai-back.fly.dev"
 }
 
 export function getAPIEndpoint(endpoint: string): string {
